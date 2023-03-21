@@ -4,7 +4,6 @@ from tkinter import *
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
-from config import pwd
 
 
 class GestionStockGUI:
@@ -166,7 +165,7 @@ class GestionStock:
         self.log = mysql.connector.connect(
             host = "localhost",
             user = "root",
-            password = pwd,
+            password = "1",
             database = "boutique"
         )
         self.cursor = self.log.cursor()
