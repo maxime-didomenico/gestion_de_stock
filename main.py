@@ -8,9 +8,9 @@ from tkinter import messagebox
 
 class GestionStockGUI:
     
-    def __init__(self, master):
+    def __init__(self, pwd, master):
 
-        self.gestion_stock = GestionStock()
+        self.gestion_stock = GestionStock(pwd)
         self.master = master
         master.title("Gestion de stock")
         
@@ -160,12 +160,12 @@ class GestionStockGUI:
 
 class GestionStock:
 
-    def __init__(self):
+    def __init__(self, pwd):
 
         self.log = mysql.connector.connect(
             host = "localhost",
             user = "root",
-            password = "1",
+            password = pwd,
             database = "boutique"
         )
         self.cursor = self.log.cursor()
@@ -328,5 +328,6 @@ class GestionStock:
         print("Connexion à la base de données fermée.")
 
 root = tk.Tk()
-app = GestionStockGUI(root)
+pwd = input("Enter your mysql password : \n>")
+app = GestionStockGUI(pwd, root)
 root.mainloop()
