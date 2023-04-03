@@ -8,9 +8,9 @@ from tkinter import messagebox
 
 class GestionStockGUI:
     
-    def __init__(self, pwd, master):
+    def __init__(self, master):
 
-        self.gestion_stock = GestionStock(pwd)
+        self.gestion_stock = GestionStock()
         self.master = master
         master.title("Gestion de stock")
         
@@ -118,12 +118,18 @@ class GestionStockGUI:
         self.delete_category_entry.delete(0, 'end')
         self.categorie_fill()
 
+    def update_product_comboboxes(self):
+        # Update the values of the update and delete product comboboxes
+        self.update_product_combobox['values'] = self.gestion_stock.get_produits_name()
+        self.delete_product_combobox['values'] = self.gestion_stock.get_produits_name()
+    
     def add_product(self):
         id = self.gestion_stock.get_categorie_id(self.product_category_combobox.get())
         self.gestion_stock.add_produit(self.product_name_entry.get(), self.product_price_entry.get(), self.product_quantity_entry.get(), id, self.product_description_entry.get())
         self.product_name_entry.delete(0, 'end')
         self.update_produits_list()
-
+        self.update_product_comboboxes()
+    
     def update_product(self):
         category = self.gestion_stock.get_categorie_id(self.product_category_combobox.get())
         id = self.gestion_stock.get_categorie_id(self.update_product_combobox.get())
@@ -134,7 +140,8 @@ class GestionStockGUI:
         self.gestion_stock.upd_produit(id, name, self.product_price_entry.get(), self.product_quantity_entry.get(), category, self.product_description_entry.get())
         self.product_name_entry.delete(0, 'end')
         self.update_produits_list()
-
+        self.update_product_comboboxes()
+    
     def delete_product(self):
         name = self.delete_product_combobox.get()
         if name[0] == '{':
@@ -143,6 +150,7 @@ class GestionStockGUI:
         self.gestion_stock.del_produit(id)
         self.delete_product_combobox.delete(0, 'end')
         self.update_produits_list()
+        self.update_product_comboboxes()
 
     def update_produits_list(self):
         self.products_treeview.delete(*self.products_treeview.get_children())
@@ -160,12 +168,12 @@ class GestionStockGUI:
 
 class GestionStock:
 
-    def __init__(self, pwd):
+    def __init__(self):
 
         self.log = mysql.connector.connect(
             host = "localhost",
             user = "root",
-            password = pwd,
+            password = "1",
             database = "boutique"
         )
         self.cursor = self.log.cursor()
@@ -227,9 +235,8 @@ class GestionStock:
 
 
     def upd_produit(self, id_produit, nom, prix, quantite, id_categorie, desc):
-
         request = "UPDATE produit SET nom = %s, prix = %s, quantite = %s, id_categorie = %s, description = %s WHERE id = %s"
-        values = (nom, prix, quantite, id_categorie, id_produit, desc)
+        values = (nom, prix, quantite, id_categorie, desc, id_produit)
         self.cursor.execute(request, values)
         self.log.commit()
         print(f"Produit {nom} mis à jour.")
@@ -328,6 +335,5 @@ class GestionStock:
         print("Connexion à la base de données fermée.")
 
 root = tk.Tk()
-pwd = input("Enter your mysql password : \n>")
-app = GestionStockGUI(pwd, root)
+app = GestionStockGUI(root)
 root.mainloop()
