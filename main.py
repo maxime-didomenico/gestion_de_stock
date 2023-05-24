@@ -43,6 +43,9 @@ class GestionStockGUI:
         # Liste des catégories
         self.categories_listbox = tk.Listbox(self.categories_frame)
         self.categories_listbox.grid(row=3, column=0, columnspan=1, padx=5, pady=5)
+        
+        # Bind click event to categories listbox
+        self.categories_listbox.bind("<<ListboxSelect>>", self.on_category_click)
 
         # Remplir la liste des catégories
         self.categorie_fill()
@@ -94,8 +97,39 @@ class GestionStockGUI:
         self.products_treeview.heading("category", text="Categorie")
         #self.products_treeview.heading("desc", text="Description")
         self.products_treeview.grid(row=2, column=2, rowspan=10, padx=10, pady=10)
+        
+        # Bind double click event to products treeview
+        self.products_treeview.bind("<Double-1>", self.on_double_click)
 
         self.update_produits_list()
+
+        #self.products_treeview.heading("desc", text="Description")
+        self.products_treeview.grid(row=2, column=2, rowspan=10, padx=10, pady=10)
+
+        self.update_produits_list()
+
+    def on_category_click(self, event):
+        selection = self.categories_listbox.curselection()
+        if selection:
+            category = self.categories_listbox.get(selection[0])
+            self.update_category_entry.delete(0, 'end')
+            self.update_category_entry.insert(0, category)
+    
+    def on_double_click(self, event):
+        item = self.products_treeview.selection()[0]
+        # Récupérer les valeurs de l'élément sélectionné
+        values = self.products_treeview.item(item, "values")
+        # Mettre à jour les champs d'entrée avec les valeurs de l'élément sélectionné
+        self.product_name_entry.delete(0, 'end')
+        self.product_name_entry.insert(0, values[1])
+        self.product_price_entry.delete(0, 'end')
+        self.product_price_entry.insert(0, values[2])
+        self.product_quantity_entry.delete(0, 'end')
+        self.product_quantity_entry.insert(0, values[3])
+        # Set the value of the product_category_combobox
+        category_name = self.gestion_stock.get_categorie_name(values[4])
+        self.product_category_combobox.set(category_name)
+
     
     def categorie_fill(self):
         self.categories_listbox.delete(0, tk.END)
@@ -108,20 +142,26 @@ class GestionStockGUI:
         self.add_category_entry.delete(0, 'end')
         self.categorie_fill()
 
-    def update_category(self, str):
-        self.gestion_stock.upd_categorie(str)
-        self.update_category_entry.delete(0, 'end')
-        self.categorie_fill()
+    def update_category(self, new_name):
+        selection = self.categories_listbox.curselection()
+        if selection:
+            old_name = self.categories_listbox.get(selection[0])
+            self.gestion_stock.upd_categorie(old_name, new_name)
+            self.update_category_entry.delete(0, 'end')
+            self.categorie_fill()
+
 
     def delete_category(self, str):
         self.gestion_stock.del_categorie(str)
         self.delete_category_entry.delete(0, 'end')
         self.categorie_fill()
 
-    def update_product_comboboxes(self):
-        # Update the values of the update and delete product comboboxes
-        self.update_product_combobox['values'] = self.gestion_stock.get_produits_name()
-        self.delete_product_combobox['values'] = self.gestion_stock.get_produits_name()
+    def update_product_category_combobox(self):
+        # Récupérer les catégories existantes dans la base de données
+        categories = self.gestion_stock.get_categories()
+        # Mettre à jour les valeurs de la liste déroulante avec ces catégories
+        self.product_category_combobox['values'] = categories
+
     
     def add_product(self):
         id = self.gestion_stock.get_categorie_id(self.product_category_combobox.get())
@@ -129,19 +169,31 @@ class GestionStockGUI:
         self.product_name_entry.delete(0, 'end')
         self.update_produits_list()
         self.update_product_comboboxes()
+
+    def update_product_comboboxes(self):
+        # Update the values of the update and delete product comboboxes
+        self.update_product_combobox['values'] = self.gestion_stock.get_produits_name()
+        self.delete_product_combobox['values'] = self.gestion_stock.get_produits_name()
+
     
     def update_product(self):
-        category = self.gestion_stock.get_categorie_id(self.product_category_combobox.get())
-        id = self.gestion_stock.get_categorie_id(self.update_product_combobox.get())
-        name = self.product_name_entry.get()
-        if name[0] == '{':
-            name = name.strip('{}')
+        old_name = self.update_product_combobox.get()
+        id = self.gestion_stock.get_produit_id(old_name)
+        if id is not None:
+            name = self.product_name_entry.get()
+            category = self.gestion_stock.get_categorie_id(self.product_category_combobox.get())
+            if category is not None:
+                self.gestion_stock.upd_produit(id, name, self.product_price_entry.get(), self.product_quantity_entry.get(), category, self.product_description_entry.get())
+                self.product_name_entry.delete(0, 'end')
+                # Update the products list and comboboxes
+                self.update_produits_list()
+                self.update_product_comboboxes()
+            else:
+                print(f"La catégorie {self.product_category_combobox.get()} n'existe pas dans la base de données.")
+        else:
+            print(f"Le produit {old_name} n'existe pas dans la base de données.")
 
-        self.gestion_stock.upd_produit(id, name, self.product_price_entry.get(), self.product_quantity_entry.get(), category, self.product_description_entry.get())
-        self.product_name_entry.delete(0, 'end')
-        self.update_produits_list()
-        self.update_product_comboboxes()
-    
+
     def delete_product(self):
         name = self.delete_product_combobox.get()
         if name[0] == '{':
@@ -199,13 +251,16 @@ class GestionStock:
         print(f"Catégorie {nom} ajoutée.")
 
 
-    def upd_categorie(self, nom):
-        id_categorie = self.get_categorie_id(nom)
-        request = "UPDATE categorie SET nom = %s WHERE id = %s"
-        values = (nom, id_categorie)
-        self.cursor.execute(request, values)
-        self.log.commit()
-        print(f"Catégorie {nom} mise à jour.")
+    def upd_categorie(self, old_name, new_name):
+        id_categorie = self.get_categorie_id(old_name)
+        if id_categorie is not None:
+            request = "UPDATE categorie SET nom = %s WHERE id = %s"
+            values = (new_name, id_categorie)
+            self.cursor.execute(request, values)
+            self.log.commit()
+            print(f"Catégorie {old_name} mise à jour en {new_name}.")
+
+
 
 
     def get_categorie_id(self, nom):
@@ -213,7 +268,12 @@ class GestionStock:
         values = (nom,)
         self.cursor.execute(request, values)
         result = self.cursor.fetchone()
-        return result[0]
+        if result is not None:
+            return result[0]
+        else:
+            print(f"La catégorie {nom} n'existe pas dans la base de données.")
+            return None
+
 
 
     def del_categorie(self, categorie):
@@ -265,7 +325,12 @@ class GestionStock:
         values = (name,)
         self.cursor.execute(request, values)
         result = self.cursor.fetchone()
-        return result[0]
+        if result is not None:
+            return result[0]
+        else:
+            print(f"Le produit {name} n'existe pas dans la base de données.")
+            return None
+
 
 
     def get_produits_name(self):
